@@ -1,0 +1,4 @@
+[03-Jan-2025 12:47:07 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function add_action() in /home2/arrow8ei/cashperhour.com/wp-content/plugins/hello.php:69
+Stack trace:
+#0 {main}
+  thrown in /home2/arrow8ei/cashperhour.com/wp-content/plugins/hello.php on line 69
