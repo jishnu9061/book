@@ -1,0 +1,30 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Language extends Model
+{
+    use HasFactory;
+    protected $table = 'languages';
+    
+    protected $fillable = [
+        'name',
+        'code',
+        'native_name',
+        'flag',
+        'is_active',
+    ];
+    
+    public $timestamps = false;
+
+    public function scopeFilter($query, array $filters){
+        $query->when($filters['search'] ?? null, function ($query, $search) {
+            $query->where(function ($query) use ($search) {
+                $query->where('name', 'like', '%'.$search.'%');
+            });
+        });
+    }
+}
