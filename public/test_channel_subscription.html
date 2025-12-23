@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Channel Subscription Test</title>
+    <script src="https://js.pusher.com/7.0/pusher.min.js"></script>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { max-width: 800px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #0056b3; }
+        pre { background: #eee; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        .status { margin-top: 15px; padding: 10px; border-radius: 4px; }
+        .status.connected { background-color: #d4edda; color: #155724; }
+        .status.disconnected { background-color: #f8d7da; color: #721c24; }
+        .status.error { background-color: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Channel Subscription Test</h1>
+        <p>This page tests direct Pusher channel subscription to <code>chat.17</code> for <code>NewChatMessage</code> events.</p>
+        <div id="connection-status" class="status disconnected">Connecting...</div>
+        <div id="debug-output">
+            <h2>Debug Output:</h2>
+            <pre id="output"></pre>
+        </div>
+    </div>
+
+    <script>
+        const output = document.getElementById('output');
+        const connectionStatusDiv = document.getElementById('connection-status');
+
+        function log(message, data = null) {
+            output.textContent += message + '\n';
+            if (data) {
+                output.textContent += JSON.stringify(data, null, 2) + '\n';
+            }
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function updateConnectionStatus(status) {
+            connectionStatusDiv.textContent = `Connection Status: ${status}`;
+            connectionStatusDiv.className = `status ${status}`;
+        }
+
+        // Initialize Pusher directly
+        const pusher = new Pusher('09f0300b6461c4fc8605', {
+            cluster: 'ap1',
+            forceTLS: true,
+            enabledTransports: ['ws', 'wss'],
+            disableStats: false,
+        });
+
+        log('Pusher initialized');
+
+        // Connection event handlers
+        pusher.connection.bind('connecting', () => {
+            log('Pusher: Connecting...');
+            updateConnectionStatus('connecting');
+        });
+
+        pusher.connection.bind('connected', () => {
+            log('Pusher: Connected!');
+            log('Socket ID: ' + pusher.connection.socket_id);
+            updateConnectionStatus('connected');
+            
+            // Subscribe to the channel
+            const channel = pusher.subscribe('chat.17');
+            log('Subscribed to channel: chat.17');
+            
+            // Listen for NewChatMessage events
+            channel.bind('NewChatMessage', function(data) {
+                log('✅ RECEIVED NewChatMessage:', data);
+            });
+            
+            // Listen for any event on the channel (if bind_all is available)
+            if (typeof channel.bind_all === 'function') {
+                channel.bind_all(function(eventName, data) {
+                    log(`📡 Channel event: ${eventName}`, data);
+                });
+            }
+            
+            log('Listening for NewChatMessage events on chat.17');
+        });
+
+        pusher.connection.bind('disconnected', () => {
+            log('Pusher: Disconnected');
+            updateConnectionStatus('disconnected');
+        });
+
+        pusher.connection.bind('error', (error) => {
+            log('Pusher Error:', error);
+            updateConnectionStatus('error');
+        });
+
+        // Test sending a message (if you have the endpoint)
+        window.testSendMessage = function() {
+            fetch('/dashboard/chat/message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                },
+                body: JSON.stringify({
+                    conversation_id: 17,
+                    message: 'Test message from direct Pusher test'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                log('Message sent:', data);
+            })
+            .catch(error => {
+                log('Error sending message:', error);
+            });
+        };
+
+        log('Test page loaded. Use testSendMessage() in console to send a test message.');
+    </script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Frontend Chat Debug</title>
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+</head>
+<body>
+    <h1>Frontend Chat Debug Tool</h1>
+    <div id="status"></div>
+    <div id="messages"></div>
+    
+    <script>
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+        
+        function log(message) {
+            console.log(message);
+            statusDiv.innerHTML += '<p>' + new Date().toLocaleTimeString() + ': ' + message + '</p>';
+        }
+        
+        function addMessage(message) {
+            messagesDiv.innerHTML += '<p><strong>' + new Date().toLocaleTimeString() + ':</strong> ' + message + '</p>';
+        }
+        
+        // Pusher configuration
+        const pusherConfig = {
+            key: '09f0300b6461c4fc8605',
+            cluster: 'ap1',
+            encrypted: true
+        };
+        
+        log('Starting Pusher connection test...');
+        log('Config: ' + JSON.stringify(pusherConfig));
+        
+        try {
+            // Initialize Pusher
+            const pusher = new Pusher(pusherConfig.key, {
+                cluster: pusherConfig.cluster,
+                encrypted: pusherConfig.encrypted
+            });
+            
+            log('Pusher initialized successfully');
+            
+            // Monitor connection state
+            pusher.connection.bind('connecting', () => {
+                log('Pusher: Connecting...');
+            });
+            
+            pusher.connection.bind('connected', () => {
+                log('Pusher: Connected! Socket ID: ' + pusher.connection.socket_id);
+            });
+            
+            pusher.connection.bind('disconnected', () => {
+                log('Pusher: Disconnected');
+            });
+            
+            pusher.connection.bind('error', (error) => {
+                log('Pusher Error: ' + JSON.stringify(error));
+            });
+            
+            // Subscribe to test channel
+            const channel = pusher.subscribe('chat.17');
+            log('Subscribed to channel: chat.17');
+            
+            // Listen for messages
+            channel.bind('NewChatMessage', (data) => {
+                log('Received NewChatMessage: ' + JSON.stringify(data));
+                addMessage('NewChatMessage: ' + (data.chatMessage ? data.chatMessage.message : 'No message'));
+            });
+            
+            channel.bind('NewPublicChatMessage', (data) => {
+                log('Received NewPublicChatMessage: ' + JSON.stringify(data));
+                addMessage('NewPublicChatMessage: ' + (data.chatMessage ? data.chatMessage.message : 'No message'));
+            });
+            
+            // Test message sending
+            setTimeout(() => {
+                log('Testing message sending...');
+                // This would normally be done via your Laravel backend
+                log('To test: Send a message from your chat interface');
+            }, 2000);
+            
+        } catch (error) {
+            log('Error: ' + error.message);
+        }
+    </script>
+</body>
+</html>
+

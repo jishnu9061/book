@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PusherManager Integration Test</title>
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <script src="https://unpkg.com/laravel-echo@1.15.3/dist/echo.iife.js"></script>
+</head>
+<body>
+    <h1>PusherManager Integration Test</h1>
+    <div id="status"></div>
+    <div id="messages"></div>
+    
+    <script>
+        // Simulate the PusherManager setup from your app
+        window.PusherManager = {
+            echo: null,
+            connectionStatus: 'disconnected',
+            chatCallbacks: new Map(),
+            typingCallbacks: new Map(),
+            
+            init() {
+                console.log('Initializing PusherManager...');
+                
+                // Initialize Echo (same as your app)
+                window.Echo = new Echo({
+                    broadcaster: 'pusher',
+                    key: '09f0300b6461c4fc8605',
+                    cluster: 'ap1',
+                    encrypted: true,
+                    wsHost: 'ws-ap1.pusher.com',
+                    wsPort: 443,
+                    wssPort: 443,
+                    forceTLS: true,
+                    disableStats: true,
+                    enabledTransports: ['ws', 'wss']
+                });
+                
+                this.echo = window.Echo;
+                this.setupConnectionMonitoring();
+                this.connectionStatus = 'connected';
+                
+                console.log('PusherManager initialized successfully');
+                this.log('PusherManager initialized successfully');
+            },
+            
+            setupConnectionMonitoring() {
+                if (this.echo && this.echo.connector && this.echo.connector.pusher) {
+                    const pusher = this.echo.connector.pusher;
+                    
+                    pusher.connection.bind('connected', () => {
+                        this.connectionStatus = 'connected';
+                        this.log('Pusher: Connected! Socket ID: ' + pusher.connection.socket_id);
+                    });
+                    
+                    pusher.connection.bind('connecting', () => {
+                        this.connectionStatus = 'connecting';
+                        this.log('Pusher: Connecting...');
+                    });
+                    
+                    pusher.connection.bind('disconnected', () => {
+                        this.connectionStatus = 'disconnected';
+                        this.log('Pusher: Disconnected');
+                    });
+                    
+                    pusher.connection.bind('error', (error) => {
+                        this.connectionStatus = 'error';
+                        this.log('Pusher Error: ' + JSON.stringify(error));
+                    });
+                }
+            },
+            
+            listenToChat(conversationId, callback) {
+                const channelName = `chat.${conversationId}`;
+                const eventName = 'NewChatMessage';
+                
+                console.log(`Setting up chat listener for ${channelName}`);
+                this.log(`Setting up chat listener for ${channelName}`);
+                
+                this.chatCallbacks.set(conversationId, callback);
+                
+                if (this.echo) {
+                    this.echo.channel(channelName)
+                        .listen(eventName, (data) => {
+                            console.log(`Received ${eventName} on ${channelName}:`, data);
+                            this.log(`Received ${eventName}: ${JSON.stringify(data)}`);
+                            callback(data);
+                        });
+                }
+            },
+            
+            listenToTyping(conversationId, callback) {
+                const channelName = `chat.${conversationId}`;
+                const eventName = 'client-typing';
+                
+                console.log(`Setting up typing listener for ${channelName}`);
+                this.log(`Setting up typing listener for ${channelName}`);
+                
+                this.typingCallbacks.set(conversationId, callback);
+                
+                if (this.echo) {
+                    this.echo.channel(channelName)
+                        .listen(eventName, (data) => {
+                            console.log(`Received ${eventName} on ${channelName}:`, data);
+                            this.log(`Received ${eventName}: ${JSON.stringify(data)}`);
+                            callback(data);
+                        });
+                }
+            },
+            
+            sendTypingIndicator(conversationId, isTyping, userData) {
+                const channelName = `chat.${conversationId}`;
+                const eventName = 'client-typing';
+                
+                console.log(`Sending typing indicator: ${isTyping} for ${channelName}`);
+                this.log(`Sending typing indicator: ${isTyping} for ${channelName}`);
+                
+                if (this.echo) {
+                    this.echo.channel(channelName)
+                        .whisper(eventName, {
+                            isTyping: isTyping,
+                            user: userData
+                        });
+                    return true;
+                }
+                return false;
+            },
+            
+            onConnectionChange(callback) {
+                // Simple implementation
+                setInterval(() => {
+                    callback(this.connectionStatus);
+                }, 1000);
+            },
+            
+            onError(callback) {
+                // Simple implementation
+                if (this.echo && this.echo.connector && this.echo.connector.pusher) {
+                    this.echo.connector.pusher.connection.bind('error', callback);
+                }
+            },
+            
+            getConnectionStatus() {
+                return this.connectionStatus;
+            },
+            
+            log(message) {
+                const statusDiv = document.getElementById('status');
+                const time = new Date().toLocaleTimeString();
+                statusDiv.innerHTML += `<p>${time}: ${message}</p>`;
+            }
+        };
+        
+        // Initialize PusherManager
+        window.PusherManager.init();
+        
+        // Test chat listener
+        setTimeout(() => {
+            window.PusherManager.listenToChat(17, (data) => {
+                const messagesDiv = document.getElementById('messages');
+                const time = new Date().toLocaleTimeString();
+                messagesDiv.innerHTML += `<p><strong>${time}:</strong> ${JSON.stringify(data)}</p>`;
+            });
+            
+            window.PusherManager.listenToTyping(17, (data) => {
+                const messagesDiv = document.getElementById('messages');
+                const time = new Date().toLocaleTimeString();
+                messagesDiv.innerHTML += `<p><strong>${time}:</strong> Typing: ${JSON.stringify(data)}</p>`;
+            });
+            
+            window.PusherManager.log('Chat listeners set up for conversation 17');
+        }, 2000);
+        
+        // Test typing indicator
+        setTimeout(() => {
+            window.PusherManager.sendTypingIndicator(17, true, {
+                id: 1,
+                first_name: 'Test',
+                last_name: 'User'
+            });
+            
+            setTimeout(() => {
+                window.PusherManager.sendTypingIndicator(17, false, {
+                    id: 1,
+                    first_name: 'Test',
+                    last_name: 'User'
+                });
+            }, 3000);
+        }, 5000);
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Chat Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        #messages { height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+        .message { margin: 5px 0; padding: 5px; background: #f0f0f0; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>Real-time Chat Test</h1>
+    
+    <div class="test-section" id="connection-status">
+        <h3>Connection Status</h3>
+        <p id="status-text">Checking...</p>
+    </div>
+    
+    <div class="test-section" id="pusher-test">
+        <h3>Pusher Test</h3>
+        <button onclick="testPusherConnection()">Test Pusher Connection</button>
+        <button onclick="testEchoConnection()">Test Echo Connection</button>
+        <p id="pusher-result"></p>
+    </div>
+    
+    <div class="test-section" id="chat-test">
+        <h3>Chat Test</h3>
+        <button onclick="startChat()">Start Chat</button>
+        <button onclick="sendMessage()">Send Test Message</button>
+        <div id="messages"></div>
+        <input type="text" id="message-input" placeholder="Type a message..." style="width: 300px;">
+    </div>
+
+    <!-- Load the built assets -->
+    <script type="module" src="/build/assets/app-Cp4W7Hid.js"></script>
+
+    <script>
+        let conversationId = null;
+        let contactId = null;
+        
+        // Test Pusher connection
+        function testPusherConnection() {
+            const result = document.getElementById('pusher-result');
+            try {
+                if (window.Pusher) {
+                    result.innerHTML = '<span style="color: green;">✓ Pusher library loaded</span>';
+                } else {
+                    result.innerHTML = '<span style="color: red;">✗ Pusher library not found</span>';
+                }
+            } catch (error) {
+                result.innerHTML = '<span style="color: red;">✗ Error: ' + error.message + '</span>';
+            }
+        }
+        
+        // Test Echo connection
+        function testEchoConnection() {
+            const result = document.getElementById('pusher-result');
+            try {
+                if (window.Echo) {
+                    result.innerHTML += '<br><span style="color: green;">✓ Echo library loaded</span>';
+                    if (window.PusherManager) {
+                        result.innerHTML += '<br><span style="color: green;">✓ PusherManager loaded</span>';
+                        result.innerHTML += '<br><span style="color: blue;">Connection Status: ' + window.PusherManager.getConnectionStatus() + '</span>';
+                    } else {
+                        result.innerHTML += '<br><span style="color: red;">✗ PusherManager not found</span>';
+                    }
+                } else {
+                    result.innerHTML += '<br><span style="color: red;">✗ Echo library not found</span>';
+                }
+            } catch (error) {
+                result.innerHTML += '<br><span style="color: red;">✗ Error: ' + error.message + '</span>';
+            }
+        }
+        
+        // Start chat
+        async function startChat() {
+            try {
+                const response = await fetch('/chat/init', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        firstName: 'Test',
+                        lastName: 'User',
+                        email: 'test@example.com'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    conversationId = data.conversation.id;
+                    contactId = data.conversation.contact_id;
+                    
+                    addMessage('System', 'Chat started successfully! Conversation ID: ' + conversationId);
+                    
+                    // Listen for messages
+                    if (window.PusherManager) {
+                        window.PusherManager.listenPublic(
+                            `chat.${conversationId}`,
+                            'NewChatMessage',
+                            (e) => {
+                                addMessage('Admin', e.chatMessage.message);
+                            }
+                        );
+                        
+                        window.PusherManager.listenPublic(
+                            `chat.${conversationId}`,
+                            'NewPublicChatMessage',
+                            (e) => {
+                                addMessage('Customer', e.chatMessage.message);
+                            }
+                        );
+                        
+                        addMessage('System', 'Listening for real-time messages...');
+                    }
+                } else {
+                    addMessage('Error', 'Failed to start chat: ' + data.message);
+                }
+            } catch (error) {
+                addMessage('Error', 'Failed to start chat: ' + error.message);
+            }
+        }
+        
+        // Send message
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (!message || !conversationId) {
+                alert('Please start a chat first and enter a message');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/chat/sendMessage', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        conversation_id: conversationId,
+                        contact_id: contactId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addMessage('You', message);
+                    input.value = '';
+                } else {
+                    addMessage('Error', 'Failed to send message: ' + data.message);
+                }
+            } catch (error) {
+                addMessage('Error', 'Failed to send message: ' + error.message);
+            }
+        }
+        
+        // Add message to display
+        function addMessage(sender, message) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.innerHTML = `<strong>${sender}:</strong> ${message}`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        // Check connection status on load
+        window.addEventListener('load', () => {
+            const statusDiv = document.getElementById('connection-status');
+            const statusText = document.getElementById('status-text');
+            
+            // Wait for PusherManager to be available
+            const checkPusherManager = () => {
+                if (window.PusherManager) {
+                    const status = window.PusherManager.getConnectionStatus();
+                    statusText.textContent = 'PusherManager Status: ' + status;
+                    
+                    if (status === 'connected') {
+                        statusDiv.className = 'test-section success';
+                    } else if (status === 'error') {
+                        statusDiv.className = 'test-section error';
+                    } else {
+                        statusDiv.className = 'test-section info';
+                    }
+                } else {
+                    statusText.textContent = 'PusherManager not available, retrying...';
+                    statusDiv.className = 'test-section info';
+                    setTimeout(checkPusherManager, 100);
+                }
+            };
+            
+            checkPusherManager();
+        });
+        
+        // Allow Enter key to send message
+        document.getElementById('message-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

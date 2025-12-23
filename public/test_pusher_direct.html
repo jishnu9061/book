@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Direct Pusher Test</title>
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+</head>
+<body>
+    <h1>Direct Pusher Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="messages"></div>
+    
+    <script>
+        console.log('Starting direct Pusher test...');
+        
+        // Use the same credentials from .env
+        const pusher = new Pusher('09f0300b6461c4fc8605', {
+            cluster: 'ap1',
+            forceTLS: true,
+            enabledTransports: ['ws', 'wss'],
+            disableStats: false,
+        });
+        
+        console.log('Pusher initialized:', pusher);
+        
+        // Set up connection monitoring
+        pusher.connection.bind('connecting', () => {
+            console.log('Pusher connecting...');
+            document.getElementById('status').textContent = 'Connecting...';
+        });
+        
+        pusher.connection.bind('connected', () => {
+            console.log('Pusher connected!');
+            document.getElementById('status').textContent = 'Connected!';
+            
+            // Subscribe to test channel
+            const channel = pusher.subscribe('chat.34');
+            console.log('Channel subscribed:', channel);
+            
+            channel.bind('NewChatMessage', (data) => {
+                console.log('Received NewChatMessage:', data);
+                const messagesDiv = document.getElementById('messages');
+                messagesDiv.innerHTML += '<div>NewChatMessage: ' + JSON.stringify(data) + '</div>';
+            });
+            
+            // Listen for any event
+            channel.bind_all((eventName, data) => {
+                console.log('Channel event received:', eventName, data);
+                const messagesDiv = document.getElementById('messages');
+                messagesDiv.innerHTML += '<div>' + eventName + ': ' + JSON.stringify(data) + '</div>';
+            });
+            
+            console.log('Listening for events on chat.34');
+        });
+        
+        pusher.connection.bind('error', (error) => {
+            console.error('Pusher error:', error);
+            document.getElementById('status').textContent = 'Error: ' + error.message;
+        });
+        
+        pusher.connection.bind('disconnected', () => {
+            console.log('Pusher disconnected');
+            document.getElementById('status').textContent = 'Disconnected';
+        });
+    </script>
+</body>
+</html>
+

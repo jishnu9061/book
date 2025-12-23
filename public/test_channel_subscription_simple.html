@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Channel Subscription Test</title>
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <script src="https://unpkg.com/laravel-echo@1.15.3/dist/echo.iife.js"></script>
+</head>
+<body>
+    <h1>Simple Channel Subscription Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="messages"></div>
+    
+    <script>
+        console.log('Starting simple channel subscription test...');
+        
+        // Initialize Echo
+        window.Echo = new Echo({
+            broadcaster: 'pusher',
+            key: 'your-pusher-key', // Replace with your actual key
+            cluster: 'us2', // Replace with your actual cluster
+            forceTLS: true,
+            enabledTransports: ['ws', 'wss'],
+            disableStats: false,
+        });
+        
+        console.log('Echo initialized:', window.Echo);
+        
+        // Test connection
+        if (window.Echo && window.Echo.connector && window.Echo.connector.pusher) {
+            console.log('Pusher connector found');
+            
+            // Set up connection monitoring
+            window.Echo.connector.pusher.connection.bind('connecting', () => {
+                console.log('Pusher connecting...');
+                document.getElementById('status').textContent = 'Connecting...';
+            });
+            
+            window.Echo.connector.pusher.connection.bind('connected', () => {
+                console.log('Pusher connected!');
+                document.getElementById('status').textContent = 'Connected!';
+                
+                // Subscribe to test channel
+                const channel = window.Echo.channel('chat.34');
+                console.log('Channel created:', channel);
+                
+                channel.listen('NewChatMessage', (e) => {
+                    console.log('Received message:', e);
+                    const messagesDiv = document.getElementById('messages');
+                    messagesDiv.innerHTML += '<div>Message: ' + JSON.stringify(e) + '</div>';
+                });
+                
+                console.log('Listening for NewChatMessage events on chat.34');
+            });
+            
+            window.Echo.connector.pusher.connection.bind('error', (error) => {
+                console.error('Pusher error:', error);
+                document.getElementById('status').textContent = 'Error: ' + error.message;
+            });
+            
+        } else {
+            console.error('Echo or Pusher not available');
+            document.getElementById('status').textContent = 'Echo or Pusher not available';
+        }
+    </script>
+</body>
+</html>
+
