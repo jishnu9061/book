@@ -101,7 +101,7 @@
             </div>
         </section>
         <!-- Features Section -->
-        <section v-if="html.sections[1] && html.sections[1].enabled !== false" class="relative py-24 lg:py-32 bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+        <section v-if="false && html.sections[1] && html.sections[1].enabled !== false" class="relative py-24 lg:py-32 bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
             <!-- Background Elements -->
             <div class="absolute inset-0 overflow-hidden">
                 <div class="absolute -top-40 -right-40 w-80 h-80 bg-primary-500/5 rounded-full blur-3xl"></div>
@@ -176,7 +176,7 @@
         </section>
 
         <!-- Testimonials Section (Dynamic) -->
-        <section v-if="html.sections && html.sections[4] && html.sections[4].enabled !== false" class="relative py-24 lg:py-32 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <section v-if="false && html.sections && html.sections[4] && html.sections[4].enabled !== false" class="relative py-24 lg:py-32 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
             <!-- Background Elements -->
             <div class="absolute inset-0 overflow-hidden">
                 <div class="absolute top-0 left-0 w-full h-full opacity-5" style="background-image: url('/images/patterns/grid.svg'); background-position: center; background-repeat: repeat;"></div>
@@ -217,7 +217,7 @@
         </section>
 
         <!-- Ticket Submission Section -->
-        <section v-if="html.sections[2].enable_ticket_section" class="relative py-24 lg:py-32 bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900" id="ticketSubmit">
+        <section v-if="false && html.sections[2].enable_ticket_section" class="relative py-24 lg:py-32 bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900" id="ticketSubmit">
             <!-- Background Elements -->
             <div class="absolute inset-0 overflow-hidden">
                 <div class="absolute top-0 right-0 w-96 h-96 bg-primary-500/5 rounded-full blur-3xl"></div>

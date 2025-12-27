@@ -403,9 +403,8 @@
           </div>
         </div>
       </div>
-      -->
       <!-- Recent Activities Widget -->
-      <div class="sm:col-span-1 lg:col-span-1">
+      <div v-if="false" class="sm:col-span-1 lg:col-span-1">
         <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6">
           <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-3">
@@ -442,7 +441,7 @@
       </div>
 
       <!-- Conversation Metrics Widget -->
-      <div class="sm:col-span-2 lg:col-span-1">
+      <div v-if="false" class="sm:col-span-2 lg:col-span-1">
         <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6">
           <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-3">
@@ -484,6 +483,90 @@
         </div>
       </div>
     </div>
+
+        <div class="flex flex-col lg:flex-row gap-4 items-stretch">
+      <!-- Recent Activities Widget -->
+      <div class="w-full lg:w-1/2 flex flex-col">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 flex-1 flex flex-col">
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 rounded-xl flex items-center justify-center">
+                <Activity class="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{{ $t('Recent Activities') }}</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400">{{ $t('Latest ticket activities') }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-3 overflow-y-auto flex-1">
+            <div v-for="activity in recent_activities" :key="activity.id" class="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors duration-200">
+              <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" :class="getActivityBgClass(activity.color)">
+                <component :is="getActivityIcon(activity.icon)" class="w-4 h-4" :class="getActivityIconClass(activity.color)" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-slate-900 dark:text-white truncate">{{ activity.description }}</p>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="text-xs text-slate-500 dark:text-slate-400">{{ activity.user }}</span>
+                  <span class="text-xs text-slate-400 dark:text-slate-500">•</span>
+                  <span class="text-xs text-slate-500 dark:text-slate-400">{{ formatTime(activity.created_at) }}</span>
+                  <span v-if="activity.ticket_uid" class="text-xs text-blue-600 dark:text-blue-400 font-medium">#{{ activity.ticket_uid }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-if="recent_activities.length === 0" class="text-center py-8">
+              <p class="text-sm text-slate-500 dark:text-slate-400">{{ $t('No recent activities') }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Conversation Metrics Widget -->
+      <div class="w-full lg:w-1/2 flex flex-col">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 flex-1 flex flex-col">
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900/30 dark:to-green-800/30 rounded-xl flex items-center justify-center">
+                <MessageCircle class="w-5 h-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{{ $t('Conversations') }}</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400">{{ $t('Chat & messaging') }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-4 flex-1 flex flex-col justify-center">
+            <!-- Total Conversations -->
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-slate-600 dark:text-slate-400">{{ $t('Total Conversations') }}</span>
+              <span class="text-2xl font-bold text-green-600">{{ conversation_metrics.total_conversations }}</span>
+            </div>
+
+            <!-- Active Conversations -->
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-slate-600 dark:text-slate-400">{{ $t('Active') }}</span>
+              <span class="text-lg font-semibold text-blue-600">{{ conversation_metrics.active_conversations }}</span>
+            </div>
+
+            <!-- Today's Conversations -->
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-slate-600 dark:text-slate-400">{{ $t('Today') }}</span>
+              <span class="text-lg font-semibold text-purple-600">{{ conversation_metrics.today_conversations }}</span>
+            </div>
+
+            <!-- Average Messages -->
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-slate-600 dark:text-slate-400">{{ $t('Avg Messages') }}</span>
+              <span class="text-lg font-semibold text-orange-600">{{ conversation_metrics.avg_messages_per_conversation }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <br><br><br>
+
 
     <!-- AI Dashboard Components -->
     <div v-if="false" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">

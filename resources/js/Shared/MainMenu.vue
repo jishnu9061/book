@@ -300,11 +300,11 @@ export default {
         }
 
         if(hasAccess('global', 'read') || hasAccess('global', 'update') || hasAccess('global', 'create') || hasAccess('global', 'delete')){
-            settingSubmenus.push({'name': 'Global', 'route': 'global', 'url': 'settings/global', 'icon': 'global_setting'})
+            //settingSubmenus.push({'name': 'Global', 'route': 'global', 'url': 'settings/global', 'icon': 'global_setting'})
         }
 
         if(hasAccess('global', 'read') || hasAccess('global', 'update') || hasAccess('global', 'create') || hasAccess('global', 'delete')){
-            settingSubmenus.push({'name': 'Custom fields', 'route': 'tickets.builder', 'url': 'settings/custom-form', 'icon': 'form-builder'})
+            //settingSubmenus.push({'name': 'Custom fields', 'route': 'tickets.builder', 'url': 'settings/custom-form', 'icon': 'form-builder'})
         }
 
         if(hasAccess('department', 'read') || hasAccess('department', 'update') || hasAccess('department', 'create') || hasAccess('department', 'delete')){
@@ -328,7 +328,7 @@ export default {
         }
 
         if(hasAccess('language', 'read') || hasAccess('language', 'update') || hasAccess('language', 'create') || hasAccess('language', 'delete')){
-            settingSubmenus.push({'name': 'Languages', 'route': 'languages', 'url': 'settings/languages', 'icon': 'edit'})
+            //settingSubmenus.push({'name': 'Languages', 'route': 'languages', 'url': 'settings/languages', 'icon': 'edit'})
         }
 
         if(hasAccess('email_template', 'read') || hasAccess('email_template', 'update') || hasAccess('email_template', 'create') || hasAccess('email_template', 'delete')){
@@ -345,15 +345,16 @@ export default {
 
         if(this.user.role && this.user.role.slug === 'admin'){
             settingSubmenus.push({'name': 'Email to ticket', 'route': 'settings.piping', 'url': 'settings/piping', 'icon': 'ticket'})
-            settingSubmenus.push({'name': 'Ai Settings', 'route': 'settings.ai', 'url': 'settings/ai', 'icon': 'settings'})
-            settingSubmenus.push({'name': 'License', 'route': 'license.settings', 'url': 'settings/license', 'icon': 'user_role'})
-            settingSubmenus.push({'name': 'Latest Updates', 'route': 'settings.update', 'url': 'settings/update', 'icon': 'archive'})
+            //settingSubmenus.push({'name': 'Ai Settings', 'route': 'settings.ai', 'url': 'settings/ai', 'icon': 'settings'})
+            //settingSubmenus.push({'name': 'License', 'route': 'license.settings', 'url': 'settings/license', 'icon': 'user_role'})
+            // settingSubmenus.push({'name': 'Latest Updates', 'route': 'settings.update', 'url': 'settings/update', 'icon': 'archive'})
         }
 
         if(settingSubmenus.length){
             this.menu_items.push({'name': 'Settings', 'route': '', 'url': 'settings', 'icon': 'settings', 'submenu': settingSubmenus })
         }
 
+        /*
         if(hasAccess('front_page', 'read') || hasAccess('front_page', 'update') || hasAccess('front_page', 'create') || hasAccess('front_page', 'delete')){
             this.menu_items.push(
                 {'name': 'Front Pages', 'route': '', 'url': 'front_pages', 'icon': 'gear',
@@ -368,6 +369,7 @@ export default {
                 },
             )
         }
+        */
 
 
 
