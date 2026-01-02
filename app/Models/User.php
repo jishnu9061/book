@@ -31,6 +31,7 @@ class User extends Authenticatable
         'country_id',
         'title',
         'photo_path',
+        'department_id',
     ];
 
     /**
@@ -85,6 +86,10 @@ class User extends Authenticatable
 
     public function role() {
         return $this->belongsTo(Role::class);
+    }
+
+    public function department() {
+        return $this->belongsTo(Department::class);
     }
 
     public function setPasswordAttribute($password)

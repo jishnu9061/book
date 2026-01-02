@@ -21,27 +21,26 @@ use Inertia\Inertia;
 class DashboardController extends Controller {
     public function index() {
         $user = Auth()->user();
-        if(empty($user['role'])){
+        if(!$user->role){
             $customerRole = $this->getCustomerRole();
-            User::where('id', $user['id'])->update(['role_id' => $customerRole->id]);
-            return Auth::guard('web')->logout()->with('error', 'You need to login again!');
+            $user->update(['role_id' => $customerRole->id]);
+            return auth()->guard('web')->logout()->with('error', 'You need to login again!');
         }
         $byUser = null;
         $byAssign = null;
         $avgWhere = [];
         $opened_status = Status::where('name', 'Closed')->first();
-        $newTicketQuery = Ticket::select(DB::raw('*'));
+        $newTicketQuery = Ticket::query();
         if(!empty($opened_status)){
             $avgWhere[] = ['status_id', '!=', $opened_status->id];
         }
 
-
-        if(in_array($user['role']['slug'], ['customer'])){
-            $byUser = $user['id'];
+        if(in_array($user->role->slug, ['customer'])){
+            $byUser = $user->id;
             $avgWhere[] = ['user_id', '=', $byUser];
             $newTicketQuery->where('user_id', '=', $byUser);
-        }elseif(in_array($user['role']['slug'], ['agent'])){
-            $byAssign = $user['id'];
+        }elseif(in_array($user->role->slug, ['agent', 'manager', 'general', 'agency'])){
+            $byAssign = $user->id;
             $avgWhere[] = ['assigned_to', '=', $byAssign];
             $newTicketQuery->where('assigned_to', '=', $byAssign);
         }
@@ -53,7 +52,8 @@ class DashboardController extends Controller {
         $openedTickets = $openedTickets->count();
 
 
-        $top_clients = Ticket::selectRaw("user_id, count(id) as total")
+        $top_clients = Ticket::byUser($byUser)->byAssign($byAssign)
+            ->selectRaw("user_id, count(id) as total")
             ->groupBy('user_id')
             ->orderBy('total','DESC')
             ->limit('3')
@@ -67,7 +67,8 @@ class DashboardController extends Controller {
         $top_creators = $this->generateColorCount($top_creators, $top_creator_tickets);
 
         // Ticket By Departments
-        $top_tickets_by_department = Ticket::selectRaw("department_id, count(id) as total")
+        $top_tickets_by_department = Ticket::byUser($byUser)->byAssign($byAssign)
+            ->selectRaw("department_id, count(id) as total")
             ->groupBy('department_id')
             ->orderBy('total','DESC')
             ->get();
@@ -81,7 +82,8 @@ class DashboardController extends Controller {
         // Ticket By Departments
 
         // Ticket By Types
-        $top_tickets_by_type = Ticket::selectRaw("type_id, count(id) as total")
+        $top_tickets_by_type = Ticket::byUser($byUser)->byAssign($byAssign)
+            ->selectRaw("type_id, count(id) as total")
             ->groupBy('type_id')
             ->orderBy('total','DESC')
             ->get();
@@ -120,8 +122,8 @@ class DashboardController extends Controller {
 
         $startThisMonth = Carbon::now()->startOfMonth()->toDateString();
 
-        $lastMonthTotal = Ticket::whereBetween('created_at',[$fromDate,$tillDate])->count();
-        $thisMonthTotal = Ticket::whereBetween('created_at', [$startThisMonth, now()])->count();
+        $lastMonthTotal = Ticket::byUser($byUser)->byAssign($byAssign)->whereBetween('created_at',[$fromDate,$tillDate])->count();
+        $thisMonthTotal = Ticket::byUser($byUser)->byAssign($byAssign)->whereBetween('created_at', [$startThisMonth, now()])->count();
 
         $beforeMonths = Carbon::now()->startOfMonth()->subMonths(12);
 
@@ -132,7 +134,7 @@ class DashboardController extends Controller {
         }
 
 //        $thisMountTickets = Ticket::whereBetween('created_at', [$startThisMonth, now()])
-        $previousMountTickets = Ticket::whereBetween('created_at', [$beforeMonths, now()])
+        $previousMountTickets = Ticket::byUser($byUser)->byAssign($byAssign)->whereBetween('created_at', [$beforeMonths, now()])
             ->orderBy('created_at')
             ->get()
             ->groupBy(function ($val) {
@@ -329,7 +331,7 @@ class DashboardController extends Controller {
     {
         $query = \App\Models\TicketActivity::with(['ticket', 'user'])
             ->orderBy('created_at', 'desc')
-            ->limit(10);
+            ->limit(3);
 
         // Filter by user role
         if ($byUser) {

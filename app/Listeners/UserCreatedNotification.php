@@ -31,7 +31,7 @@ class UserCreatedNotification
      */
     public function handle(UserCreated $event) {
         $data = $event->data;
-        $user = User::where('id', $data['id'])->first();
+        $user = User::find($data['user_id'] ?? $data['id'] ?? null);
         $notifications = app('App\HelpDesk')->getSettingsEmailNotifications();
         if(!empty($user) && $notifications['user_created']){
             $template = EmailTemplate::where('slug', 'user_created')->first();

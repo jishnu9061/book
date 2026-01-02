@@ -127,6 +127,17 @@
                 <option v-for="c in roles" :key="c.id" :value="c.id">{{ c.name }}</option>
               </select-input>
             </div>
+            <div v-if="showDepartment">
+              <select-input
+                  v-model="form.department_id"
+                  :error="form.errors.department_id"
+                  :label="$t('Department')"
+                  class="w-full"
+              >
+                <option :value="null">{{ $t('Select department') }}</option>
+                <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
+              </select-input>
+            </div>
           </div>
 
           <!-- Profile Photo -->
@@ -182,13 +193,13 @@
       :show="showDeleteModal"
       :title="deleteConfig.title"
       :message="deleteConfig.message"
-      :item-name="deleteConfig.itemName"
-      :item-type="deleteConfig.itemType"
-      :delete-url="deleteConfig.deleteUrl"
-      :delete-method="deleteConfig.deleteMethod"
-      :delete-data="deleteConfig.deleteData"
-      :confirm-button-text="deleteConfig.confirmButtonText"
-      :cancel-button-text="deleteConfig.cancelButtonText"
+      :itemName="deleteConfig.itemName"
+      :itemType="deleteConfig.itemType"
+      :deleteUrl="deleteConfig.deleteUrl"
+      :deleteMethod="deleteConfig.deleteMethod"
+      :deleteData="deleteConfig.deleteData"
+      :confirmButtonText="deleteConfig.confirmButtonText"
+      :cancelButtonText="deleteConfig.cancelButtonText"
       @close="hideDeleteConfirmation"
       @confirm="confirmDelete"
     />
@@ -226,7 +237,7 @@ export default {
         user: Object,
         roles: Array,
         cities: Array,
-        countries: Array,
+        departments: Array,
         title: String,
     },
   remember: 'form',
@@ -245,6 +256,7 @@ export default {
             password: '',
             role: this.user.role,
             role_id: this.user.role_id,
+            department_id: this.user.department_id,
             photo: null
         }),
       // Delete confirmation
@@ -262,8 +274,21 @@ export default {
       },
     }
   },
-  created() {
-    // this.setDefaultValue(this.countries, 'country_id', 'United States')
+  computed: {
+    showDepartment() {
+      if (!this.form.role_id) {
+        return this.user.role && ['manager', 'general'].includes(this.user.role.slug);
+      }
+      const role = this.roles.find(r => r.id === this.form.role_id);
+      return role && ['manager', 'general'].includes(role.slug);
+    }
+  },
+  watch: {
+    'form.role_id'(newValue) {
+      if (!this.showDepartment) {
+        this.form.department_id = null;
+      }
+    }
   },
   methods: {
     setDefaultValue(arr, key, value){

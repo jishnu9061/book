@@ -19,6 +19,10 @@
                 <option :value="null" />
                 <option v-for="(r, ri) in roles" :key="ri" :value="r.id">{{ r.name }}</option>
             </select-input>
+            <select-input v-if="showDepartment" v-model="form.department_id" :error="form.errors.department_id" class="pb-8 pr-6 w-full lg:w-1/2" :label="$t('Department')">
+              <option :value="null" />
+              <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
+            </select-input>
           <file-input v-model="form.photo" :error="form.errors.photo" class="pb-8 pr-6 w-full lg:w-1/2" type="file" accept="image/*" :label="$t('Photo')" />
         </div>
         <div class="flex items-center justify-end px-8 py-4 bg-gray-50 border-t border-gray-100">
@@ -50,6 +54,7 @@ export default {
   props: {
     countries: Array,
     cities: Array,
+    departments: Array,
     title: String,
     roles: Array,
   },
@@ -64,10 +69,25 @@ export default {
         city: null,
         address: '',
         country_id: null,
+        department_id: null,
         role_id: null,
         password: '',
         photo: null
       }),
+    }
+  },
+  computed: {
+    showDepartment() {
+      if (!this.form.role_id) return false;
+      const role = this.roles.find(r => r.id === this.form.role_id);
+      return role && ['manager', 'general'].includes(role.slug);
+    }
+  },
+  watch: {
+    'form.role_id'(newValue) {
+      if (!this.showDepartment) {
+        this.form.department_id = null;
+      }
     }
   },
   created() {

@@ -46,14 +46,16 @@ class TicketsController extends Controller
     public function index(){
         $byCustomer = null;
         $byAssign = null;
-        $user = Auth()->user();
+        $user = auth()->user();
         $hiddenFields = Setting::where('slug', 'hide_ticket_fields')->first();
-        if(in_array($user['role']['slug'], ['customer'])){
-            $byCustomer = $user['id'];
-        }elseif(in_array($user['role']['slug'], ['agent'])){
-            $byAssign = $user['id'];
-        }else{
+        if ($user->role->slug === 'admin') {
             $byAssign = Request::input('assigned_to');
+        } elseif ($user->role->slug === 'manager') {
+            $byAssign = null;
+        } elseif (in_array($user->role->slug, ['agent', 'general', 'agency'])) {
+            $byAssign = $user->id;
+        } else {
+            $byCustomer = $user->id;
         }
         $whereAll = [];
         $type = Request::input('type');
@@ -68,7 +70,7 @@ class TicketsController extends Controller
             $whereAll[] = ['user_id', '=', Request::input('user_id')];
         }
 
-        if($type == 'un_assigned'){
+        if($type == 'un_assigned'){ 
             $whereAll[] = ['assigned_to', '=', null];
         }elseif ($type == 'open'){
             $opened_status = Status::where('slug', 'like', '%closed%')->first();
@@ -92,6 +94,13 @@ class TicketsController extends Controller
         }
 
         $ticketQuery = Ticket::where($whereAll);
+
+        if ($user->role->slug === 'manager') {
+            $ticketQuery->where(function ($q) use ($user) {
+                $q->where('assigned_to', $user->id)
+                  ->orWhere('department_id', $user->department_id);
+            });
+        }
 
         if (Request::has(['field', 'direction'])) {
             if(Request::input('field') == 'tech'){
@@ -240,7 +249,7 @@ class TicketsController extends Controller
     }
 
     public function create(){
-        $user = Auth()->user();
+        $user = auth()->user();
         $roles = Role::pluck('id', 'slug')->all();
         $hiddenFields = Setting::where('slug', 'hide_ticket_fields')->first();
         $custom_fields = TicketField::get();
@@ -253,7 +262,19 @@ class TicketsController extends Controller
                 ->get()
                 ->map
                 ->only('id', 'name'),
-            'usersExceptCustomers' => User::where('role_id', '!=', $roles['customer'] ?? 0)->orWhere('id', Request::input('user_id'))->orderBy('first_name')
+            'usersExceptCustomers' => User::where('role_id', '!=', $roles['customer'] ?? 0)
+                ->where(function($q) use ($roles, $user) {
+                    if ($user->role->slug === 'admin') {
+                        $q->where('id', 0); 
+                    } elseif ($user->role->slug === 'manager') {
+                        $q->where('id', 0);
+                    } else {
+                        $q->where('role_id', $roles['admin'] ?? 0);
+                    }
+                })
+                ->orWhere('id', Request::input('user_id'))
+                ->orderByRaw("CASE WHEN role_id = ? THEN 0 ELSE 1 END", [$roles['admin'] ?? 0])
+                ->orderBy('first_name')
                 ->limit(6)
                 ->get()
                 ->map
@@ -286,7 +307,7 @@ class TicketsController extends Controller
         if(!empty($get_required_fields)){
             $required_fields = json_decode($get_required_fields->value, true);
         }
-        $user = Auth()->user();
+        $user = auth()->user();
         $request_data = Request::validate([
             'user_id' => ['nullable', Rule::exists('users', 'id')],
             'priority_id' => ['nullable', Rule::exists('priorities', 'id')],
@@ -364,19 +385,24 @@ class TicketsController extends Controller
 
     public function show($uid){
 
-        $user = Auth()->user()->load('role');
-        $byCustomer = null;
-        $byAssign = null;
-        if(in_array($user['role']['slug'], ['customer'])){
-            $byCustomer = $user['id'];
-        }elseif(in_array($user['role']['slug'], ['agent'])){
-            $byAssign = $user['id'];
-        }else{
+        $user = auth()->user()->load('role');
+        $ticketQuery = Ticket::query();
+
+        if ($user->role->slug === 'customer') {
+            $ticketQuery->byCustomer($user->id);
+        } elseif ($user->role->slug === 'manager') {
+            $ticketQuery->where(function ($q) use ($user) {
+                $q->where('assigned_to', $user->id)
+                  ->orWhere('department_id', $user->department_id);
+            });
+        } elseif (in_array($user->role->slug, ['agent', 'general', 'agency'])) {
+            $ticketQuery->byAssign($user->id);
+        } else {
             $byAssign = Request::input('assigned_to');
+            $ticketQuery->byAssign($byAssign);
         }
-        $ticket = Ticket::byCustomer($byCustomer)
-            ->byAssign($byAssign)
-            ->where(function($query) use ($uid){
+
+        $ticket = $ticketQuery->where(function($query) use ($uid){
                 $query->where('uid', $uid);
                 $query->orWhere('id', $uid);
             })->first();
@@ -521,7 +547,7 @@ class TicketsController extends Controller
     }
 
     public function edit($uid){
-        $user = Auth()->user()->load('role');
+        $user = auth()->user()->load('role');
         
         // Check if user has permission to update tickets
         if (!$user->access['ticket']['update']) {
@@ -537,21 +563,27 @@ class TicketsController extends Controller
             abort(403, 'You do not have permission to edit tickets');
         }
         
-        $byCustomer = null;
-        $byAssign = null;
-        if(in_array($user['role']['slug'], ['customer'])){
-            $byCustomer = $user['id'];
-        }elseif(in_array($user['role']['slug'], ['agent'])){
-            $byAssign = $user['id'];
-        }else{
+        $ticketQuery = Ticket::query();
+
+        if ($user->role->slug === 'customer') {
+            $ticketQuery->byCustomer($user->id);
+        } elseif ($user->role->slug === 'manager') {
+            $ticketQuery->where(function ($q) use ($user) {
+                $q->where('assigned_to', $user->id)
+                  ->orWhere('department_id', $user->department_id);
+            });
+        } elseif (in_array($user->role->slug, ['agent', 'general', 'agency'])) {
+            $ticketQuery->byAssign($user->id);
+        } else {
             $byAssign = Request::input('assigned_to');
+            $ticketQuery->byAssign($byAssign);
         }
-        $ticket = Ticket::byCustomer($byCustomer)
-            ->byAssign($byAssign)
-            ->where(function($query) use ($uid){
+
+        $ticket = $ticketQuery->where(function($query) use ($uid){
                 $query->where('uid', $uid);
                 $query->orWhere('id', $uid);
             })->first();
+
         if(empty($ticket)){
             abort(404);
         }
@@ -591,8 +623,38 @@ class TicketsController extends Controller
                 ->get()
                 ->map
                 ->only('id', 'name'),
-            'usersExceptCustomers' => User::where('role_id', '!=', $roles['customer'] ?? 0)->orWhere('id', Request::input('user_id'))->orderBy('first_name')
-                ->limit(6)
+            'usersExceptCustomers' => User::where('role_id', '!=', $roles['customer'] ?? 0)
+                ->where(function($q) use ($roles, $ticket, $user) {
+                    $managerId = $roles['manager'] ?? 0;
+                    if ($user->role->slug === 'admin') {
+                        if ($ticket->department_id) {
+                            $q->where('department_id', $ticket->department_id)
+                              ->where('role_id', $managerId);
+                        } else {
+                            $q->where('id', 0);
+                        }
+                    } elseif ($user->role->slug === 'manager') {
+                        if ($ticket->department_id) {
+                            $q->where('department_id', $ticket->department_id)
+                                ->whereIn('role_id', [
+                                    $roles['general'] ?? 0,
+                                    $roles['agent'] ?? 0
+                                ]);
+                        } else {
+                            $q->where('id', 0);
+                        }
+                    } else {
+                        if ($ticket->department_id) {
+                            $q->where('department_id', $ticket->department_id);
+                        } else {
+                            $q->where('id', 0);
+                        }
+                    }
+                })
+                ->orWhere('id', $ticket->assigned_to)
+                ->orderByRaw("CASE WHEN role_id = ? THEN 0 ELSE 1 END", [$roles['manager'] ?? 0])
+                ->orderBy('first_name')
+                ->limit(50)
                 ->get()
                 ->map
                 ->only('id', 'name'),
@@ -665,7 +727,7 @@ class TicketsController extends Controller
     }
 
     public function update(Ticket $ticket){
-        $user = Auth()->user()->load('role');
+        $user = auth()->user()->load('role');
         
         // Check if user has permission to update tickets
         if (!$user->access['ticket']['update']) {

@@ -372,9 +372,10 @@
                 <div v-if="auth.user.role.slug !== 'customer' && !(hidden_fields && hidden_fields.includes('assigned_to'))">
                   <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ $t('Assigned to') }}</label>
                   <select-edit-input
+                    :is-loading="isLoadingUsers"
                     placeholder="Search user"
                     :onInput="doFilterUsersExceptCustomer"
-                    :items="usersExceptCustomers"
+                    :items="localUsers"
                     v-model="form.assigned_to"
                     :error="form.errors.assigned_to"
                     :editable="user_access.ticket.update && !ticket.closed"
@@ -401,7 +402,6 @@
                 <div v-if="!(hidden_fields && hidden_fields.includes('department'))">
                   <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ $t('Department') }}</label>
                   <select-edit-input
-                    @change="getCategories"
                     placeholder="Search department"
                     :items="departments"
                     v-model="form.department_id"
@@ -737,7 +737,15 @@ export default {
       isFavorited: false,
       autoSaveTimeout: null,
       hasUnsavedChanges: false,
-      activeTab: 'basic'
+      activeTab: 'basic',
+      localUsers: [...this.usersExceptCustomers],
+      isLoadingUsers: false,
+    }
+  },
+  watch: {
+    'form.department_id': function(val) {
+        this.getCategories(val);
+        this.getAssignees(val);
     }
   },
   created() {
@@ -749,6 +757,9 @@ export default {
     }
     this.moment = moment;
     this.tagsInput = this.form.tags.join(', ');
+    if(this.form.department_id){
+        this.getAssignees();
+    }
   },
   computed: {
     isAdmin() {
@@ -777,10 +788,27 @@ export default {
       this.$inertia.reload({ only: ['ticket'] });
     },
 
-    getCategories(){
+    getCategories(id){
+      const deptId = id || this.form.department_id;
       this.ticket.category = 'N/A';
       this.form.category_id = null;
-      this.categories = this.all_categories.filter(cat=>cat.department_id === this.form.department_id)
+      this.categories = this.all_categories.filter(cat=>cat.department_id === deptId)
+    },
+    getAssignees(id){
+        const deptId = id || this.form.department_id;
+        this.isLoadingUsers = true;
+        axios.get(this.route('filter.users_except_customer', {department_id: deptId})).then((res)=>{
+            this.localUsers = res.data;
+            this.isLoadingUsers = false;
+            if (this.form.assigned_to) {
+                const exists = this.localUsers.find(u => u.id === this.form.assigned_to);
+                if (!exists) {
+                    this.form.assigned_to = null;
+                }
+            }
+        }).catch(() => {
+            this.isLoadingUsers = false;
+        })
     },
     getSubCategories(){
       this.sub_categories = this.all_categories.filter(cat=>cat.parent_id === this.form.category_id)
@@ -793,8 +821,12 @@ export default {
       })
     },
     doFilterUsersExceptCustomer(e){
-      axios.get(this.route('filter.users_except_customer', {search: e.target.value})).then((res)=>{
-        this.usersExceptCustomers.splice(0, this.usersExceptCustomers.length, ...res.data);
+      this.isLoadingUsers = true;
+      axios.get(this.route('filter.users_except_customer', {search: e.target.value, department_id: this.form.department_id})).then((res)=>{
+        this.localUsers = res.data;
+        this.isLoadingUsers = false;
+      }).catch(() => {
+        this.isLoadingUsers = false;
       })
     },
     fileInputChange(e) {

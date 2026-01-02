@@ -25,7 +25,7 @@
                         <option v-for="s in types" :key="s.id" :value="s.id">{{ s.name }}</option>
                     </select-input>
 
-                    <select-input v-if="!(hidden_fields && hidden_fields.includes('department'))" @change="getCategories()" v-model="form.department_id" :error="form.errors.department_id" class="pr-6 pb-5 md:col-span-6 lg:w-1/3" :label="$t('Department')">
+                    <select-input v-if="!(hidden_fields && hidden_fields.includes('department'))" v-model="form.department_id" :error="form.errors.department_id" class="pr-6 pb-5 md:col-span-6 lg:w-1/3" :label="$t('Department')">
                         <option :value="null">{{ $t('Select a department') }}</option>
                         <option v-for="department in departments" :key="department.id" :value="department.id">{{ department.name }}</option>
                     </select-input>
@@ -40,7 +40,7 @@
                         <option v-for="category in sub_categories" :key="category.id" :value="category.id">{{ category.name }}</option>
                     </select-input>
 
-                    <select-input-filter placeholder="Start typing" :onInput="doFilterUsersExceptCustomer" :items="usersExceptCustomers"
+                    <select-input-filter :is-loading="isLoading" placeholder="Start typing" :onInput="doFilterUsersExceptCustomer" :items="localUsers"
                                          v-if="auth.user.role.slug !== 'customer' && user_access.ticket.update && !(hidden_fields && hidden_fields.includes('assigned_to'))"
                                          v-model="form.assigned_to" :error="form.errors.assigned_to"
                                          class="pr-6 pb-8 w-full lg:w-1/3" :label="$t('Assigned to')">
@@ -144,6 +144,14 @@ export default {
                 files: [],
                 custom_field: {}
             }),
+            localUsers: [...this.usersExceptCustomers],
+            isLoading: false,
+        }
+    },
+    watch: {
+        'form.department_id': function(val) {
+            this.getCategories(val);
+            this.getAssignees(val);
         }
     },
     created() {
@@ -151,15 +159,40 @@ export default {
         this.setDefaultValue(this.priorities, 'priority_id', 'Generally')
     },
     methods: {
-        getCategories(){
-            this.categories = this.all_categories.filter(cat=>cat.department_id === this.form.department_id)
+        getCategories(id){
+            const deptId = id || this.form.department_id;
+            this.categories = this.all_categories.filter(cat=>cat.department_id === deptId)
             this.form.category_id = null;
-            this.$refs.category.selected = null;
+            if (this.$refs.category) {
+                this.$refs.category.selected = null;
+            }
+        },
+        getAssignees(id){
+             const deptId = id || this.form.department_id;
+             this.isLoading = true;
+             axios.get(this.route('filter.users_except_customer', {department_id: deptId})).then((res)=>{
+                this.localUsers = res.data;
+                this.isLoading = false;
+                // Clear selected assignee if they are not in the new list (optional, but good UX)
+                // However, the select-input object might handle this, or we might want to keep it if they are still valid.
+                // For now, let's keep the selection if possible, or maybe resetting it is safer if the department changes.
+                // If the department changes, it's likely the previous assignee is not valid anymore.
+                if (this.form.assigned_to) {
+                     const exists = this.localUsers.find(u => u.id === this.form.assigned_to);
+                     if (!exists) {
+                         this.form.assigned_to = null;
+                     }
+                }
+            }).catch(() => {
+                 this.isLoading = false;
+             })
         },
         getSubCategories(){
             this.sub_categories = this.all_categories.filter(cat=>cat.parent_id === this.form.category_id)
             this.form.sub_category_id = null;
-            this.$refs.sub_category.selected = null;
+            if (this.$refs.sub_category) {
+                this.$refs.sub_category.selected = null;
+            }
         },
         doFilter(e){
             axios.get(this.route('filter.customers', {search: e.target.value})).then((res)=>{
@@ -167,8 +200,12 @@ export default {
             })
         },
         doFilterUsersExceptCustomer(e){
-            axios.get(this.route('filter.users_except_customer', {search: e.target.value})).then((res)=>{
-                this.usersExceptCustomers.splice(0, this.usersExceptCustomers.length, ...res.data);
+            this.isLoading = true;
+            axios.get(this.route('filter.users_except_customer', {search: e.target.value, department_id: this.form.department_id})).then((res)=>{
+                this.localUsers = res.data;
+                this.isLoading = false;
+            }).catch(() => {
+                this.isLoading = false;
             })
         },
         setDefaultValue(arr, key, value){

@@ -62,13 +62,53 @@ class FilterController extends Controller {
     }
 
     public function usersExceptCustomer(){
-        $customerRole = Role::where('slug', 'customer')->first();
-        $customers = User::where('role_id', '!=', $customerRole ? $customerRole->id : 0)
-            ->filter(Request::only('search'))
-            ->limit(6)
+        $currentUser = auth()->user();
+        if (!$currentUser) return response()->json([]);
+
+        $roles = Role::pluck('id', 'slug')->all();
+        $deptId = Request::input('department_id');
+        
+        $adminId = $roles['admin'] ?? 0;
+        $managerId = $roles['manager'] ?? 0;
+        $agentId = $roles['agent'] ?? 0;
+        $generalId = $roles['general'] ?? 0;
+        $customerId = $roles['customer'] ?? 0;
+
+        $query = User::where('role_id', '!=', $customerId)
+            ->filter(Request::only('search'));
+        if ($currentUser->role_id == $adminId) {
+            // Admins see Managers in the selected department only. No Admins allowed.
+            if ($deptId) {
+                $query->where('department_id', $deptId)
+                      ->where('role_id', $managerId);
+            } else {
+                $query->where('id', 0);
+            }
+        } elseif ($currentUser->role_id == $managerId) {
+            // Managers see Staff (General/Agent) in the selected department
+            if ($deptId) {
+                $query->where('department_id', $deptId)
+                      ->whereIn('role_id', [$generalId, $agentId]);
+            } else {
+                $query->where('id', 0);
+            }
+        } else {
+            // Fallback for Agents or other staff - only show department staff
+            if ($deptId) {
+                $query->where('department_id', $deptId);
+            } else {
+                $query->where('id', 0);
+            }
+        }
+
+        $users = $query
+            ->orderByRaw("CASE WHEN role_id = ? THEN 0 WHEN role_id = ? THEN 1 ELSE 2 END", [$managerId, $adminId])
+            ->orderBy('first_name')
+            ->limit(10)
             ->get()
             ->map
             ->only('id', 'name');
-        return response()->json($customers);
+
+        return response()->json($users);
     }
 }
